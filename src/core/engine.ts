@@ -162,6 +162,7 @@ export class PVEngine {
   }
 
   get paused() { return this._paused; }
+  get currentTemplateConfig() { return this.currentTemplate; }
 
   pause() {
     this._paused = true;

@@ -491,9 +491,12 @@ function buildCustomTemplate(): TemplateConfig {
       effects.push({ type: preset.type, layer: preset.layer, config: { ...preset.config } });
     }
   });
+
+  const curTpl = engine.currentTemplateConfig;
+
   return {
     name: 'Custom',
-    palette: {
+    palette: curTpl ? { ...curTpl.palette } : {
       background: '#ffffff',
       primary: '#000000',
       secondary: '#888888',
@@ -501,6 +504,17 @@ function buildCustomTemplate(): TemplateConfig {
       text: '#000000',
     },
     effects,
+    bpm: curTpl?.bpm ?? engine.beat.bpm,
+    animationSpeed: curTpl?.animationSpeed ?? engine.animationSpeed,
+    bgOpacity: curTpl?.bgOpacity ?? engine.effectOpacity,
+    postfx: curTpl?.postfx ? { ...curTpl.postfx } : {
+      shake: engine.shake,
+      zoom: engine.zoom,
+      tilt: engine.tilt,
+      glitch: engine.glitch,
+      hueShift: engine.hueShift
+    },
+    features: curTpl?.features ? { ...curTpl.features } : undefined
   };
 }
 
@@ -534,6 +548,16 @@ function syncPostfxSliders() {
   hu.value = String(engine.hueShift); hv.textContent = `${engine.hueShift.toFixed(0)}°`;
 }
 
+function syncCustomCheckboxes(config: TemplateConfig) {
+  const checks = effectGrid.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+  const configTypes = new Set(config.effects.map(e => e.type));
+  checks.forEach((cb) => {
+    const idx = parseInt(cb.dataset.effectIdx!);
+    const preset = effectCatalog[idx];
+    cb.checked = configTypes.has(preset.type);
+  });
+}
+
 const syncChannel = new BroadcastChannel('pv-tool-sync');
 
 templateSelect.addEventListener('change', () => {
@@ -546,13 +570,17 @@ templateSelect.addEventListener('change', () => {
     isCustomMode = false;
     customPanel.style.display = 'none';
     const idx = parseInt(val.split('-')[1]);
-    engine.loadTemplate(customTemplates[idx]);
+    const config = customTemplates[idx];
+    engine.loadTemplate(config);
+    syncCustomCheckboxes(config);
     syncSpeedSlider();
     syncPostfxSliders();
   } else {
     isCustomMode = false;
     customPanel.style.display = 'none';
-    engine.loadTemplate(templates[parseInt(val)]);
+    const config = templates[parseInt(val)];
+    engine.loadTemplate(config);
+    syncCustomCheckboxes(config);
     syncSpeedSlider();
     syncOpacitySlider();
     syncPostfxSliders();
@@ -569,13 +597,17 @@ syncChannel.addEventListener('message', (ev) => {
   if (value.startsWith('user-')) {
     const idx = parseInt(value.split('-')[1]);
     if (idx >= 0 && idx < customTemplates.length) {
-      engine.loadTemplate(customTemplates[idx]);
+      const config = customTemplates[idx];
+      engine.loadTemplate(config);
+      syncCustomCheckboxes(config);
       templateSelect.value = value;
     }
   } else {
     const idx = parseInt(value);
     if (!isNaN(idx) && idx >= 0 && idx < templates.length) {
-      engine.loadTemplate(templates[idx]);
+      const config = templates[idx];
+      engine.loadTemplate(config);
+      syncCustomCheckboxes(config);
       templateSelect.value = String(idx);
     }
   }
@@ -1371,7 +1403,7 @@ recBtn.addEventListener('click', () => {
       syncPostfxSliders();
       
       // Sync effect-grid checklist checkboxes
-      // syncCustomCheckboxes(config);
+      syncCustomCheckboxes(config);
 
       showToast(t('ai_generate_success'));
     } catch (err) {
