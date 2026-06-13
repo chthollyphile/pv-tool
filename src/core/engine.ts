@@ -162,6 +162,13 @@ export class PVEngine {
   }
 
   get paused() { return this._paused; }
+  /**
+   * 当前已加载模板的原始配置引用。
+   *
+   * UI 层用它作为保存/分享/Custom 编辑的模板基底，再叠加 engine 当前运行态
+   * slider 参数生成快照。这里刻意只暴露 getter，不在引擎内处理持久化逻辑，
+   * 保持 PVEngine 只负责渲染和运行状态。
+   */
   get currentTemplateConfig() { return this.currentTemplate; }
 
   pause() {

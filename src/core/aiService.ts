@@ -1,6 +1,13 @@
 import type { TemplateConfig } from './types';
 import { effectCatalog, type EffectPreset } from './effectCatalog';
 
+/**
+ * AI 生成器使用的“特效能力说明表”。
+ *
+ * effectCatalog 是程序真实可渲染的特效清单，但它的 label/config 更偏 UI 展示；
+ * 这里给大模型补充更语义化的中文说明、适用场景和关键参数提示，让模型能根据
+ * 用户描述选择合适的组合，并尽量返回可直接被 PVEngine 加载的 TemplateConfig。
+ */
 export const EFFECT_SKILLS: Record<string, string> = {
   // 背景 Background
   textureBackground: '纹理背景，为画面背景提供圆点网格底纹',
@@ -89,8 +96,15 @@ export const EFFECT_SKILLS: Record<string, string> = {
   jigsawGrid: '拼图网格，拼图网格边缘细线，适合破碎、迷惘、重组'
 };
 
+/**
+ * 构造发给 LLM 的系统提示词。
+ *
+ * 提示词里会动态展开当前 effectCatalog，因此新增/删除特效后，AI 面板拿到的
+ * 可用类型列表会跟代码保持同步。这里同时强调输出必须是纯 JSON，原因是调用方
+ * 会直接 JSON.parse；如果模型返回 Markdown 包裹或解释文本，就需要后续清洗或报错。
+ */
 function buildSystemPrompt(): string {
-  // 把 effectCatalog 中的 effects 与 EFFECT_SKILLS 结合，生成向大模型描述的字典
+  // 把 effectCatalog 中的 effects 与 EFFECT_SKILLS 结合，生成向大模型描述的字典。
   const catalogDesc = effectCatalog.map((item: EffectPreset) => {
     const skillText = EFFECT_SKILLS[item.type] || item.label;
     return `- type: "${item.type}", layer: "${item.layer}", 作用: ${skillText}, 默认配置: ${JSON.stringify(item.config)}`;
@@ -177,7 +191,15 @@ ${catalogDesc}
 }
 
 /**
- * 调用 LLM 接口，根据用户 prompt 生成对应的特效配置
+ * 调用兼容 OpenAI Chat Completions 格式的 LLM 接口，生成 TemplateConfig。
+ *
+ * 返回值会做三层兜底：
+ * 1. 清理可能出现的 Markdown code fence。
+ * 2. 校验 name/palette/effects 等核心字段，避免无效结果进入渲染链路。
+ * 3. 补齐 palette 和 effect layer/config，降低模型漏字段导致页面崩溃的概率。
+ *
+ * 注意：这里不做“视觉正确性”判断，只保证结构尽量安全；真正的特效类型是否能渲染，
+ * 仍由 PVEngine/createEffect 在加载模板时处理并打印警告。
  */
 export async function generateConfigFromAI(
   userPrompt: string,
@@ -218,7 +240,7 @@ export async function generateConfigFromAI(
     throw new Error('API returned an empty message content.');
   }
 
-  // 清洗可能存在的 Markdown 代码包裹
+  // 清洗可能存在的 Markdown 代码包裹。
   let cleaned = rawContent.trim();
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```[a-zA-Z]*\n/, '').replace(/\n```$/, '').trim();
@@ -226,12 +248,12 @@ export async function generateConfigFromAI(
 
   const config = JSON.parse(cleaned) as TemplateConfig;
 
-  // 基础校验以保证程序不会崩溃
+  // 基础校验以保证程序不会崩溃。
   if (!config.name || !config.palette || !Array.isArray(config.effects)) {
     throw new Error('AI generated config lacks required fields (name, palette, or effects).');
   }
 
-  // 保证 colors 字段都存在，防崩溃
+  // 保证 palette 字段都存在，避免颜色解析时遇到 undefined。
   const defaultPalette = {
     background: '#000000',
     primary: '#ffffff',
@@ -241,7 +263,7 @@ export async function generateConfigFromAI(
   };
   config.palette = { ...defaultPalette, ...config.palette };
 
-  // 校验特效的 layer
+  // 校验特效的 layer，并为漏填 config 的 effect 补 catalog 默认值。
   config.effects = config.effects.map((fx) => {
     // 自动寻找 catalog 里的 layer
     const found = effectCatalog.find((item: EffectPreset) => item.type === fx.type);
