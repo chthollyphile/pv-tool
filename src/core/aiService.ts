@@ -162,7 +162,7 @@ export interface EffectEntry {
 }
 
 export interface TemplateConfig {
-  name: string;       // 你为此视觉风格起的合适名称（英文或中文，不超过 20 字）
+  name: string;       // 你为此视觉风格起的合适名称（中文，不超过 10 字）
   palette: ColorPalette;
   effects: EffectEntry[]; // 特效数组，一般建议选择 3~6 个互补的特效叠加以产生丰富且不杂乱的效果。请必须注意图层覆盖顺序：先放 background 层特效，再放 decoration，然后是 text，最后是 overlay。
   postfx?: {
