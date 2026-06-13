@@ -235,4 +235,18 @@ export const en: Record<LocaleKey, string> = {
   // Footer
   'footer_desc': 'Japanese PV Visual Generator',
   'footer_contributors': 'Contributors',
+
+  // AI Generator Panel
+  'ai_panel': 'AI Generator',
+  'ai_prompt_placeholder': 'Describe style, emotions, or lyrics... (e.g. Cyberpunk, high-contrast red/black, code rain)',
+  'ai_generate_btn': 'Generate via AI',
+  'ai_generating': 'Generating...',
+  'ai_settings': 'API Settings',
+  'ai_api_key': 'API Key',
+  'ai_api_url': 'API Base URL',
+  'ai_api_model': 'Model Name',
+  'ai_generate_success': 'AI generation successful!',
+  'ai_generate_error': 'Generation failed. Please check API settings or network.',
+  'ai_key_required': 'Please fill in the API Key in settings first.',
+  'ai_conceiving': 'Conceiving...',
 };

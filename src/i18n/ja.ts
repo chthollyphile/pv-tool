@@ -236,4 +236,18 @@ export const ja: Record<LocaleKey, string> = {
   // Footer
   'footer_desc': 'PVビジュアルジェネレーター',
   'footer_contributors': 'コントリビューター',
+
+  // AI Generator Panel
+  'ai_panel': 'AI ジェネレーター',
+  'ai_prompt_placeholder': '画面の雰囲気や歌詞のスタイルを入力... (例：サイバーパンク、赤黒の強烈なコントラスト、コードレイン)',
+  'ai_generate_btn': 'AIで生成',
+  'ai_generating': '生成中...',
+  'ai_settings': 'API設定',
+  'ai_api_key': 'APIキー',
+  'ai_api_url': 'APIベースURL',
+  'ai_api_model': 'モデル名',
+  'ai_generate_success': 'AI生成に成功しました！',
+  'ai_generate_error': '生成に失敗しました。APIキーまたはネットワーク設定を確認してください。',
+  'ai_key_required': '先に設定でAPIキーを入力してください。',
+  'ai_conceiving': '構想中...',
 };

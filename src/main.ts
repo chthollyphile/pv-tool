@@ -16,6 +16,7 @@ import {
 } from './core/templateStore';
 import { testNowPlayingConnection } from './core/nowPlayingProvider';
 import { initCopyUrlButton } from './core/copyUrl';
+import { generateConfigFromAI } from './core/aiService';
 import { showToast, attachModalDismiss } from './core/uiHelpers';
 import { initTemplateButtons, rebuildTemplateButtons } from './core/templateButtons';
 
@@ -261,6 +262,29 @@ app.innerHTML = `
         </div>
       </details>
       ` : ''}
+
+      <details class="collapsible-section" open>
+        <summary class="panel-title">${t('ai_panel')}</summary>
+        <div class="control-group">
+          <textarea id="ai-prompt-input" rows="3" placeholder="${t('ai_prompt_placeholder')}" style="width:100%; box-sizing:border-box; resize:vertical; padding:8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-color); font-family:inherit;"></textarea>
+          <button id="ai-generate-btn" class="btn" style="width:100%; margin-top:8px;">${t('ai_generate_btn')}</button>
+        </div>
+        <details class="collapsible-section" style="margin-top: 10px; border:none; padding: 0;">
+          <summary class="panel-title" style="font-size: 11px; padding: 4px 0; border:none; display:flex; align-items:center;">⚙️ ${t('ai_settings')}</summary>
+          <div class="control-group" style="margin-top:6px;">
+            <label>${t('ai_api_key')}</label>
+            <input type="password" id="ai-api-key" placeholder="sk-..." style="width:100%; box-sizing:border-box; padding:6px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-color);">
+          </div>
+          <div class="control-group">
+            <label>${t('ai_api_url')}</label>
+            <input type="text" id="ai-api-url" placeholder="https://api.deepseek.com" style="width:100%; box-sizing:border-box; padding:6px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-color);">
+          </div>
+          <div class="control-group">
+            <label>${t('ai_api_model')}</label>
+            <input type="text" id="ai-api-model" placeholder="deepseek-v4-flash" style="width:100%; box-sizing:border-box; padding:6px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-color);">
+          </div>
+        </details>
+      </details>
     </div>
 
     <div class="controls controls-bottom" id="custom-panel" style="display:none">
@@ -331,36 +355,56 @@ app.innerHTML = `
 const engine = new PVEngine();
 const container = document.getElementById('pv-container')!;
 
-engine.init(container).then(() => {
+engine.init(container).then(async () => {
   engine.setText('深夜東京/の6畳半夢/を見てた/灯りの灯らない蛍光灯/明日には消えてる電脳城/に/開幕戦/打ち上げて/いなくなんないよね/ここには誰もいない/ここには誰もいないから');
 
   const urlParams = new URLSearchParams(window.location.search);
 
-  // URL param: t (template)
-  const tParam = urlParams.get('t');
-  if (tParam !== null) {
-    if (tParam.startsWith('user-')) {
-      const idx = parseInt(tParam.split('-')[1]);
-      if (idx >= 0 && idx < customTemplates.length) {
-        engine.loadTemplate(customTemplates[idx]);
-        templateSelect.value = tParam;
-      } else {
-        engine.loadTemplate(templates[0]);
-        templateSelect.value = '0';
-      }
-    } else {
-      const idx = parseInt(tParam);
-      if (!isNaN(idx) && idx >= 0 && idx < templates.length) {
-        engine.loadTemplate(templates[idx]);
-        templateSelect.value = String(idx);
-      } else {
-        engine.loadTemplate(templates[0]);
-        templateSelect.value = '0';
-      }
+  // URL param: code (custom template share code)
+  const codeParam = urlParams.get('code');
+  if (codeParam !== null) {
+    try {
+      const decodedTpl = await decodeShareCode(codeParam);
+      customTemplates.push(decodedTpl);
+      saveCustomTemplates(customTemplates);
+      rebuildTemplateSelect();
+      templateSelect.value = `user-${customTemplates.length - 1}`;
+      isCustomMode = false;
+      customPanel.style.display = 'none';
+      engine.loadTemplate(decodedTpl);
+      syncCustomCheckboxes(decodedTpl);
+    } catch (err) {
+      console.warn('[PV] Failed to load config from URL code parameter:', err);
+      engine.loadTemplate(templates[0]);
+      templateSelect.value = '0';
     }
   } else {
-    engine.loadTemplate(templates[0]);
-    templateSelect.value = '0';
+    // URL param: t (template)
+    const tParam = urlParams.get('t');
+    if (tParam !== null) {
+      if (tParam.startsWith('user-')) {
+        const idx = parseInt(tParam.split('-')[1]);
+        if (idx >= 0 && idx < customTemplates.length) {
+          engine.loadTemplate(customTemplates[idx]);
+          templateSelect.value = tParam;
+        } else {
+          engine.loadTemplate(templates[0]);
+          templateSelect.value = '0';
+        }
+      } else {
+        const idx = parseInt(tParam);
+        if (!isNaN(idx) && idx >= 0 && idx < templates.length) {
+          engine.loadTemplate(templates[idx]);
+          templateSelect.value = String(idx);
+        } else {
+          engine.loadTemplate(templates[0]);
+          templateSelect.value = '0';
+        }
+      }
+    } else {
+      engine.loadTemplate(templates[0]);
+      templateSelect.value = '0';
+    }
   }
 
   syncSpeedSlider();
@@ -1014,7 +1058,12 @@ const npListenToggle = document.getElementById('np-listen-toggle') as HTMLInputE
 const copyUrlBtn = document.getElementById('copy-url-btn') as HTMLButtonElement | null;
 
 if (copyUrlBtn && npListenToggle) {
-  initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle);
+  initCopyUrlButton(copyUrlBtn, templateSelect, npListenToggle, () => {
+    return {
+      isCustom: isCustomMode || templateSelect.value.startsWith('user-'),
+      config: buildCustomTemplate()
+    };
+  });
 }
 
 let npConnecting = false;
@@ -1249,3 +1298,94 @@ recBtn.addEventListener('click', () => {
     if (el) hide();
   }, true);
 }
+
+// ── AI Generation Feature Event Binding ──
+(() => {
+  const aiPromptInput = document.getElementById('ai-prompt-input') as HTMLTextAreaElement;
+  const aiGenerateBtn = document.getElementById('ai-generate-btn') as HTMLButtonElement;
+  const aiApiKey = document.getElementById('ai-api-key') as HTMLInputElement;
+  const aiApiUrl = document.getElementById('ai-api-url') as HTMLInputElement;
+  const aiApiModel = document.getElementById('ai-api-model') as HTMLInputElement;
+
+  if (!aiPromptInput || !aiGenerateBtn || !aiApiKey || !aiApiUrl || !aiApiModel) return;
+
+  // Restore configurations from LocalStorage
+  aiApiKey.value = localStorage.getItem('pv-tool-ai-api-key') || '';
+  aiApiUrl.value = localStorage.getItem('pv-tool-ai-api-url') || '';
+  aiApiModel.value = localStorage.getItem('pv-tool-ai-api-model') || '';
+
+  // Listen to inputs and save to LocalStorage
+  aiApiKey.addEventListener('change', () => localStorage.setItem('pv-tool-ai-api-key', aiApiKey.value.trim()));
+  aiApiUrl.addEventListener('change', () => localStorage.setItem('pv-tool-ai-api-url', aiApiUrl.value.trim()));
+  aiApiModel.addEventListener('change', () => localStorage.setItem('pv-tool-ai-api-model', aiApiModel.value.trim()));
+
+  aiGenerateBtn.addEventListener('click', async () => {
+    const prompt = aiPromptInput.value.trim();
+    const apiKey = aiApiKey.value.trim();
+    const apiUrl = aiApiUrl.value.trim();
+    const model = aiApiModel.value.trim();
+
+    if (!apiKey) {
+      showToast(t('ai_key_required'));
+      return;
+    }
+
+    aiGenerateBtn.disabled = true;
+    aiGenerateBtn.textContent = t('ai_generating');
+
+    // Create Mesh Gradient Loader Overlay
+    const loaderOverlay = document.createElement('div');
+    loaderOverlay.className = 'ai-loader-overlay';
+    loaderOverlay.innerHTML = `
+      <div class="ai-loader-dots"></div>
+      <div class="ai-loader-halo-wrapper">
+        <div class="ai-loader-halo"></div>
+        <div class="ai-loader-halo" style="animation-delay: 1.25s;"></div>
+      </div>
+      <div class="ai-loader-content">
+        <div class="ai-loader-text">${t('ai_conceiving')}</div>
+      </div>
+    `;
+    container.appendChild(loaderOverlay);
+
+    try {
+      const config = await generateConfigFromAI(prompt, apiKey, apiUrl, model);
+      
+      // Load generated template configuration into PV Engine
+      engine.loadTemplate(config);
+      
+      // Push config to custom user templates list
+      customTemplates.push(config);
+      saveCustomTemplates(customTemplates);
+      
+      // Rebuild dropdown selection and select the newly created template
+      rebuildTemplateSelect();
+      templateSelect.value = `user-${customTemplates.length - 1}`;
+      isCustomMode = false;
+      customPanel.style.display = 'none';
+
+      // Update control panel action buttons & settings sliders
+      updateTemplateButtons();
+      syncSpeedSlider();
+      syncOpacitySlider();
+      syncPostfxSliders();
+      
+      // Sync effect-grid checklist checkboxes
+      // syncCustomCheckboxes(config);
+
+      showToast(t('ai_generate_success'));
+    } catch (err) {
+      console.error('[PV] AI generate config execution failed:', err);
+      showToast(t('ai_generate_error'));
+    } finally {
+      aiGenerateBtn.disabled = false;
+      aiGenerateBtn.textContent = t('ai_generate_btn');
+      
+      // Fade out and remove the loader overlay
+      loaderOverlay.classList.add('ai-loader-fadeout');
+      setTimeout(() => {
+        loaderOverlay.remove();
+      }, 400);
+    }
+  });
+})();

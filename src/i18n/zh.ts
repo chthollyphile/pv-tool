@@ -234,6 +234,20 @@ export const zh = {
   // Footer
   'footer_desc': '日式PV Visual生成',
   'footer_contributors': '贡献者',
+
+  // AI Generator Panel
+  'ai_panel': 'AI 灵感生成 AI Gen',
+  'ai_prompt_placeholder': '输入画面意境或歌词风格描述... (例如：赛博朋克、红黑强烈对比、代码雨)',
+  'ai_generate_btn': 'AI 灵感生成',
+  'ai_generating': '生成中...',
+  'ai_settings': 'API 配置 Settings',
+  'ai_api_key': 'API 密钥 Key',
+  'ai_api_url': 'API 地址 URL',
+  'ai_api_model': '模型名称 Model',
+  'ai_generate_success': 'AI 特效生成成功！',
+  'ai_generate_error': '生成失败，请检查 API 密钥或网络配置。',
+  'ai_key_required': '请先在下方 API 配置中填写 API 密钥。',
+  'ai_conceiving': '构想中...',
 } as const;
 
 export type LocaleKey = keyof typeof zh;

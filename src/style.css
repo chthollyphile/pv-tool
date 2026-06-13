@@ -25,6 +25,7 @@ body {
 #pv-container {
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .controls {
@@ -201,6 +202,7 @@ body {
 
 select,
 input[type='text'],
+input[type='password'],
 textarea {
   width: 100%;
   padding: 6px 10px;
@@ -224,6 +226,7 @@ textarea {
 
 select:focus,
 input[type='text']:focus,
+input[type='password']:focus,
 textarea:focus {
   border-color: rgba(255, 255, 255, 0.5);
 }
@@ -795,5 +798,110 @@ body.pv-panels-hidden .pv-footer {
 @media (max-width: 768px) {
   .pv-footer {
     display: none;
+  }
+}
+
+/* AI Loader Overlay - 只覆盖画面，不盖住控制面板 */
+.ai-loader-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10; /* 低于左右控制面板的 100，高于 Canvas 的默认层级 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 12, 0.45);
+  opacity: 0;
+  animation: ai-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+}
+
+/* 扩散的网点图案背景 */
+.ai-loader-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+  mask-image: radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0.2) 80%);
+  -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0.2) 80%);
+  pointer-events: none;
+}
+
+/* 扩散的彩色光圈效果 */
+.ai-loader-halo-wrapper {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.ai-loader-halo {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsla(280, 85%, 65%, 0.35) 0%, hsla(190, 90%, 55%, 0.15) 60%, transparent 80%);
+  animation: ai-halo-expand 2.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.ai-loader-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ai-loader-text {
+  font-family: 'Inter', 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.6), 0 0 24px rgba(168, 85, 247, 0.4);
+  animation: ai-pulse 2s ease-in-out infinite;
+}
+
+.ai-loader-overlay.ai-loader-fadeout {
+  animation: ai-fade-out 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Animations */
+@keyframes ai-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ai-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes ai-halo-expand {
+  0% {
+    width: 50px;
+    height: 50px;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    width: 600px;
+    height: 600px;
+    opacity: 0;
+  }
+}
+
+@keyframes ai-pulse {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 35px rgba(6, 182, 212, 0.6);
   }
 }

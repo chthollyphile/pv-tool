@@ -3,11 +3,14 @@
 
 import { t } from '../i18n';
 import { showToast, attachModalDismiss } from './uiHelpers';
+import { encodeShareCode } from './templateStore';
+import type { TemplateConfig } from './types';
 
 export function initCopyUrlButton(
   copyUrlBtn: HTMLButtonElement,
   templateSelect: HTMLSelectElement,
   npListenToggle: HTMLInputElement,
+  getCurrentConfig: () => { isCustom: boolean; config: TemplateConfig },
 ): void {
   copyUrlBtn.addEventListener('click', () => {
     const overlay = document.createElement('div');
@@ -41,8 +44,23 @@ export function initCopyUrlButton(
       const params = new URLSearchParams();
       params.set('panel', '0');
       if (bgCheck.checked) params.set('bg', '0');
-      if (tplCheck.checked) params.set('t', templateSelect.value);
       if (npListenToggle.checked) params.set('np', '1');
+
+      if (tplCheck.checked) {
+        const { isCustom, config } = getCurrentConfig();
+        if (isCustom) {
+          try {
+            const code = await encodeShareCode(config);
+            params.set('code', code);
+          } catch (err) {
+            console.warn('[PV] Encode share code failed, fallback to t=custom', err);
+            params.set('t', 'custom');
+          }
+        } else {
+          params.set('t', templateSelect.value);
+        }
+      }
+
       const url = baseUrl + '?' + params.toString();
 
       try { await navigator.clipboard.writeText(url); } catch { /* noop */ }
